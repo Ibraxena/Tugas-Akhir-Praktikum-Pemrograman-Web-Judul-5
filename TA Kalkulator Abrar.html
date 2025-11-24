@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <title>Kalkulator Interaktif</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="min-h-screen bg-slate-900 flex items-center justify-center p-4">
+  <div class="w-full max-w-4xl mx-auto">
+    <h1 class="text-center text-2xl md:text-3xl font-semibold text-white mb-4">
+      Kalkulator Interaktif
+    </h1>
+
+    <!-- Wrapper utama: kalkulator + history -->
+    <div class="bg-slate-800 rounded-xl shadow-lg p-4 md:p-6 flex flex-col md:flex-row gap-4">
+
+      <!-- KALKULATOR -->
+      <div class="md:w-2/3 w-full flex flex-col gap-3">
+        <!-- Display -->
+        <div class="bg-slate-900 rounded-lg p-3 md:p-4 text-right">
+          <div id="expression-display" class="text-slate-400 text-xs md:text-sm min-h-[1rem] break-all"></div>
+          <div id="main-display" class="text-white text-2xl md:text-3xl font-mono mt-1 break-all">
+            0
+          </div>
+          <div id="memory-indicator" class="text-emerald-400 text-xs mt-1 hidden">
+            M: <span id="memory-value">0</span>
+          </div>
+        </div>
+
+        <!-- Tombol Memory & Clear -->
+        <div class="grid grid-cols-4 gap-2">
+          <button data-action="MC" class="py-2 rounded-lg bg-slate-700 hover:bg-slate-600 text-sm text-emerald-300">MC</button>
+          <button data-action="MR" class="py-2 rounded-lg bg-slate-700 hover:bg-slate-600 text-sm text-emerald-300">MR</button>
+          <button data-action="M+" class="py-2 rounded-lg bg-slate-700 hover:bg-slate-600 text-sm text-emerald-300">M+</button>
+          <button data-action="M-" class="py-2 rounded-lg bg-slate-700 hover:bg-slate-600 text-sm text-emerald-300">M-</button>
+
+          <button data-action="CE" class="py-2 rounded-lg bg-amber-600 hover:bg-amber-500 text-white">CE</button>
+          <button data-action="C"  class="py-2 rounded-lg bg-red-600 hover:bg-red-500 text-white col-span-2">C</button>
+          <button data-operator="÷" class="py-2 rounded-lg bg-slate-700 hover:bg-slate-600 text-sky-300 text-lg">÷</button>
+        </div>
+
+        <!-- Tombol Angka & Operator -->
+        <div class="grid grid-cols-4 gap-2">
+          <!-- Row 7 8 9 × -->
+          <button data-number="7" class="py-3 rounded-lg bg-slate-700 hover:bg-slate-600 text-white text-lg">7</button>
+          <button data-number="8" class="py-3 rounded-lg bg-slate-700 hover:bg-slate-600 text-white text-lg">8</button>
+          <button data-number="9" class="py-3 rounded-lg bg-slate-700 hover:bg-slate-600 text-white text-lg">9</button>
+          <button data-operator="×" class="py-3 rounded-lg bg-slate-700 hover:bg-slate-600 text-sky-300 text-lg">×</button>
+
+          <!-- Row 4 5 6 - -->
+          <button data-number="4" class="py-3 rounded-lg bg-slate-700 hover:bg-slate-600 text-white text-lg">4</button>
+          <button data-number="5" class="py-3 rounded-lg bg-slate-700 hover:bg-slate-600 text-white text-lg">5</button>
+          <button data-number="6" class="py-3 rounded-lg bg-slate-700 hover:bg-slate-600 text-white text-lg">6</button>
+          <button data-operator="-" class="py-3 rounded-lg bg-slate-700 hover:bg-slate-600 text-sky-300 text-lg">-</button>
+
+          <!-- Row 1 2 3 + -->
+          <button data-number="1" class="py-3 rounded-lg bg-slate-700 hover:bg-slate-600 text-white text-lg">1</button>
+          <button data-number="2" class="py-3 rounded-lg bg-slate-700 hover:bg-slate-600 text-white text-lg">2</button>
+          <button data-number="3" class="py-3 rounded-lg bg-slate-700 hover:bg-slate-600 text-white text-lg">3</button>
+          <button data-operator="+" class="py-3 rounded-lg bg-slate-700 hover:bg-slate-600 text-sky-300 text-lg">+</button>
+
+          <!-- Row 0 . = -->
+          <button data-number="0" class="py-3 rounded-lg bg-slate-700 hover:bg-slate-600 text-white text-lg col-span-2">0</button>
+          <button data-decimal="." class="py-3 rounded-lg bg-slate-700 hover:bg-slate-600 text-white text-lg">.</button>
+          <button data-action="equals" class="py-3 rounded-lg bg-sky-600 hover:bg-sky-500 text-white text-lg">=</button>
+        </div>
+
+        <p class="text-xs text-slate-400 mt-2">
+          Keyboard: angka 0–9, +, -, *, /, ., Enter (=), Esc (C), Backspace (CE).
+        </p>
+      </div>
+
+      <!-- HISTORY -->
+      <div class="md:w-1/3 w-full">
+        <h2 class="text-white font-semibold mb-2 text-sm md:text-base">History (5 terakhir)</h2>
+        <div id="history-list" class="bg-slate-900 rounded-lg p-3 text-slate-200 text-xs md:text-sm min-h-[120px] max-h-64 overflow-y-auto">
+          <p class="text-slate-500 text-xs">Belum ada perhitungan.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // === STATE ===
+    let currentInput = "";
+    let expression = "";
+    let lastResult = null;
+    let history = [];
+    let memoryValue = 0;
+
+    const exprDisplay = document.getElementById("expression-display");
+    const mainDisplay = document.getElementById("main-display");
+    const historyList = document.getElementById("history-list");
+    const memoryIndicator = document.getElementById("memory-indicator");
+    const memoryValueSpan = document.getElementById("memory-value");
+
+    // === DISPLAY UPDATE ===
+    function updateDisplay() {
+      exprDisplay.textContent = expression;
+      if (currentInput !== "") {
+        mainDisplay.textContent = currentInput;
+      } else if (lastResult !== null) {
+        mainDisplay.textContent = lastResult;
+      } else {
+        mainDisplay.textContent = "0";
+      }
+    }
+
+    function updateHistoryDisplay() {
+      historyList.innerHTML = "";
+      if (history.length === 0) {
+        historyList.innerHTML = '<p class="text-slate-500 text-xs">Belum ada perhitungan.</p>';
+        return;
+      }
+      history.slice().reverse().forEach(item => {
+        const p = document.createElement("p");
+        p.className = "mb-1";
+        p.textContent = item;
+        historyList.appendChild(p);
+      });
+    }
+
+    function updateMemoryDisplay() {
+      if (memoryValue !== 0) {
+        memoryIndicator.classList.remove("hidden");
+        memoryValueSpan.textContent = memoryValue;
+      } else {
+        memoryIndicator.classList.add("hidden");
+      }
+    }
+
+    // === INPUT HANDLERS ===
+    function appendNumber(num) {
+      if (mainDisplay.textContent === "Error") {
+        clearAll();
+      }
+      if (num === "0" && currentInput === "0") return;
+      if (currentInput === "0" && num !== ".") {
+        currentInput = num;
+      } else {
+        currentInput += num;
+      }
+      updateDisplay();
+    }
+
+    function appendDecimal() {
+      if (mainDisplay.textContent === "Error") {
+        clearAll();
+      }
+      if (!currentInput.includes(".")) {
+        if (currentInput === "") {
+          currentInput = "0.";
+        } else {
+          currentInput += ".";
+        }
+        updateDisplay();
+      }
+    }
+
+    function handleOperator(op) {
+      if (mainDisplay.textContent === "Error") return;
+
+      // Jika ada currentInput, tambahkan ke expression dulu
+      if (currentInput !== "") {
+        expression += currentInput + " " + op + " ";
+        currentInput = "";
+      } else {
+        // Jika expression sudah ada operator di akhir, ganti operatornya
+        if (expression.endsWith("+ ") || expression.endsWith("- ") ||
+            expression.endsWith("× ") || expression.endsWith("÷ ")) {
+          expression = expression.slice(0, -2) + op + " ";
+        } else if (lastResult !== null && expression === "") {
+          // gunakan lastResult sebagai awal expression
+          expression = lastResult + " " + op + " ";
+        } else if (expression === "") {
+          // jika sama sekali kosong, dan user pencet operator, anggap 0 op
+          expression = "0 " + op + " ";
+        }
+      }
+      updateDisplay();
+    }
+
+    function clearAll() {
+      currentInput = "";
+      expression = "";
+      lastResult = null;
+      updateDisplay();
+    }
+
+    function clearEntry() {
+      // Hanya hapus input saat ini
+      currentInput = "";
+      updateDisplay();
+    }
+
+    function evaluateExpression() {
+      if (mainDisplay.textContent === "Error") {
+        clearAll();
+        return;
+      }
+
+      let fullExpr = expression.trim();
+      if (currentInput !== "") {
+        fullExpr += (fullExpr ? " " : "") + currentInput;
+      }
+
+      if (!fullExpr) return;
+
+      // Buat string expression untuk ditampilkan di history
+      const displayExpr = fullExpr;
+
+      // Ubah ke format JS
+      let jsExpr = fullExpr.replace(/×/g, "*").replace(/÷/g, "/");
+
+      // Hapus spasi
+      jsExpr = jsExpr.replace(/\s+/g, " ");
+
+      let result;
+      try {
+        // gunakan eval untuk kesederhanaan, HANYA dari input kalkulator
+        result = Function(`"use strict"; return (${jsExpr});`)();
+
+        if (!isFinite(result)) {
+          mainDisplay.textContent = "Error";
+          currentInput = "";
+          expression = "";
+          lastResult = null;
+          return;
+        }
+      } catch (e) {
+        mainDisplay.textContent = "Error";
+        currentInput = "";
+        expression = "";
+        lastResult = null;
+        return;
+      }
+
+      // Simpan history (maks 5)
+      const record = displayExpr + " = " + result;
+      history.push(record);
+      if (history.length > 5) {
+        history.shift();
+      }
+      updateHistoryDisplay();
+
+      lastResult = result;
+      currentInput = "";
+      expression = "";
+      updateDisplay();
+    }
+
+    // === MEMORY HANDLERS ===
+    function getCurrentValue() {
+      if (currentInput !== "") return parseFloat(currentInput);
+      if (lastResult !== null) return parseFloat(lastResult);
+      return 0;
+    }
+
+    function memoryClear() {
+      memoryValue = 0;
+      updateMemoryDisplay();
+    }
+
+    function memoryRecall() {
+      if (mainDisplay.textContent === "Error") return;
+      currentInput = memoryValue.toString();
+      updateDisplay();
+    }
+
+    function memoryAdd() {
+      if (mainDisplay.textContent === "Error") return;
+      memoryValue += getCurrentValue();
+      updateMemoryDisplay();
+    }
+
+    function memorySubtract() {
+      if (mainDisplay.textContent === "Error") return;
+      memoryValue -= getCurrentValue();
+      updateMemoryDisplay();
+    }
+
+    // === EVENT LISTENERS: BUTTONS ===
+    document.addEventListener("click", (e) => {
+      const btn = e.target.closest("button");
+      if (!btn) return;
+
+      const num = btn.getAttribute("data-number");
+      const op = btn.getAttribute("data-operator");
+      const dec = btn.getAttribute("data-decimal");
+      const action = btn.getAttribute("data-action");
+
+      if (num !== null) {
+        appendNumber(num);
+      } else if (op !== null) {
+        handleOperator(op);
+      } else if (dec !== null) {
+        appendDecimal();
+      } else if (action) {
+        switch (action) {
+          case "C":
+            clearAll();
+            break;
+          case "CE":
+            clearEntry();
+            break;
+          case "equals":
+            evaluateExpression();
+            break;
+          case "MC":
+            memoryClear();
+            break;
+          case "MR":
+            memoryRecall();
+            break;
+          case "M+":
+            memoryAdd();
+            break;
+          case "M-":
+            memorySubtract();
+            break;
+        }
+      }
+    });
+
+    // === KEYBOARD SUPPORT ===
+    document.addEventListener("keydown", (e) => {
+      const key = e.key;
+
+      if (key >= "0" && key <= "9") {
+        appendNumber(key);
+      } else if (key === ".") {
+        appendDecimal();
+      } else if (key === "+" || key === "-" || key === "*" || key === "/") {
+        const map = { "*": "×", "/": "÷" };
+        handleOperator(map[key] || key);
+      } else if (key === "Enter" || key === "=") {
+        e.preventDefault();
+        evaluateExpression();
+      } else if (key === "Escape") {
+        clearAll();
+      } else if (key === "Backspace") {
+        // CE
+        clearEntry();
+      }
+    });
+
+    // Inisialisasi awal
+    updateDisplay();
+    updateHistoryDisplay();
+    updateMemoryDisplay();
+  </script>
+</body>
+</html>
